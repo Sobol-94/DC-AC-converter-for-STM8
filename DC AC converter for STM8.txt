@@ -1,0 +1,286 @@
+#include "iostm8S003f3.h" 
+#include "stdint.h"
+#include "intrinsics.h"
+
+#pragma vector = TIM2_OVR_UIF_vector // вектор прерывания для таймера 2
+__interrupt void TIM2_OVR_UIF(void);
+
+
+#pragma vector=0x06                 // вектор прерывания для порта PB5 
+__interrupt void EXTI_PB5(void);
+
+/*
+#pragma vector=0x08                 // вектор прерывания для порта PD5 
+__interrupt void EXTI_PD5(void);
+*/
+
+int i,j;
+
+void PWM_TIM1_CH2(void);            // Подпрограмма таймера 1 для шим
+
+void interrupt_init(void);          // Подпрограмма прерывания
+
+void Ports(void);                   // Подпрограмма инициализации портов
+
+void TIM2(void);
+
+void TIM2(void)
+{
+TIM2_CR1_bit.URS=1;       // Прерывание таймера 2 только при переполнении
+TIM2_IER_bit.UIE=1;       // Разрешение прерывания таймера при переполнении 
+TIM2_CR1_bit.OPM=1;       // Одниночный режим работы таймера 2     
+TIM2_PSCR=0x05;           // Делитель частоты таймера 2. 
+TIM2_ARRH = 0xF4;         // Старший бит счетчика
+TIM2_ARRL = 0x20;         // Младший бит счетчика.  
+
+}
+
+int main( void )
+{
+  
+//TIM2_CNTRH=0xF4;
+//TIM2_CNTRL=0X20;
+TIM2_ARRH = 0xF4;         // Старший бит счетчика
+TIM2_ARRL = 0x20;         // Младший бит счетчика.  
+TIM2_CR1_bit.CEN=1; 
+interrupt_init();                // Подпрограмма прерывания 
+asm("nop");                   // пустая операция 
+asm("nop");                   // пустая операция
+TIM2();
+asm("nop");                   // пустая операция 
+Ports(); 
+asm("nop");  
+asm("nop"); 
+
+PWM_TIM1_CH2();                 // Вызов подпрограммы таймера 1 для шим
+                     // Подпрограмма инициализации портов
+asm("nop");                   // пустая операция 
+
+
+while (1)
+
+{
+/*    
+if (PD_IDR_bit.IDR5==1) 
+{
+  
+PB_CR2_bit.C25=1;          // Разрешение прерывания на порту PB5  
+PD_ODR_bit.ODR6=1;        //  сигнал out_signal_ready = 1
+
+}
+*/
+asm("nop");
+asm("nop");
+  
+}  
+
+}
+void interrupt_init(void)       // Подпрограмма прерываний 
+{
+   EXTI_CR1|=0x0C;       // прерывание кнопки по верхнему и нижнему фронту.
+__enable_interrupt();  // Разрешение глобальных прерываний
+}
+
+
+
+
+void Ports(void)      // Пожпрограмма инициализации портов. 
+{
+PB_DDR_bit.DDR5=0;    // Порт PB5 инициализируется как ВХОД ()
+PB_CR1_bit.C15= 0;    //  Без pull-up резистора   
+PB_CR2_bit.C25=1; 
+
+
+PD_DDR_bit.DDR5=0;   // Порт PB5 инициализируется как ВХОД ()
+PD_CR1_bit.C15=0;    //  Без pull-up резистора   
+PD_CR2_bit.C25=0;    //
+
+  
+PB_DDR_bit.DDR4=1;   //  
+PB_CR1_bit.C14=1;    // 
+PB_CR2_bit.C24=1;    // 
+PB_ODR_bit.ODR4=0;   // 
+
+PD_DDR_bit.DDR3=1;  // Порт PD3 сконфигрурирован как Выход. (out_signal_led_work_invert);
+PD_CR1_bit.C13=1;   //  push-pull
+PD_CR2_bit.C23=1;   // скорость переключение 10 МГц
+PD_ODR_bit.ODR3=1;  // На выход записываем 1
+
+PD_DDR_bit.DDR4=1;       // Порт PD4 сконфигрурирован как Выход. (out_signal_led_work);
+PD_CR1_bit.C14=1;       //  push-pull
+PD_CR2_bit.C24=1;       // скорость переключение 10 МГц
+PD_ODR_bit.ODR4=0;      // На выход записываем 0
+
+PD_DDR_bit.DDR6=1;      // Порт PD6 сконфигрурирован как Выход. (out_signal_ready)
+PD_CR1_bit.C16=1;       //  push-pull
+PD_CR2_bit.C26=1;       // скорость переключение 10 МГц
+PD_ODR_bit.ODR6=1;        // На выход записываем 1
+}
+
+
+void PWM_TIM1_CH2(void) // Подпрограмма таймера 1 (ШИМ) и таймера 2
+{
+CLK_PCKENR1=0xff;       //  Тактирование переферии 1
+CLK_PCKENR2=0xff;       //  Тактирование переверии 2 
+TIM1_PSCRL=0x00;        //  Делитель частоты для таймера 1 младший разряд
+TIM1_PSCRH=0x0F;        //  Делитель частоты для таймера 1 старший  разряд
+TIM1_BKR=0x80;          //  Подключение каналов таймера 1
+TIM1_CCMR1=0x68;        //  Включение ШИМ для канала 1
+TIM1_CCMR2=0x68;        //  Включение ШИМ для канала 2
+
+TIM1_CCER1_bit.CC1P=0;      //  Активный уровень высокий 
+TIM1_CCER1_bit.CC1NE=1;    //  Отключение канала CH1N
+TIM1_CCER1_bit.CC1E=1;    //  Отключение канала CH1
+TIM1_CCER1_bit.CC2P=0;    //  Активный уровень высокий 
+TIM1_CCER1_bit.CC2E=1;    // Отключение канала CH2
+TIM1_CCER1_bit.CC2NE=1;   // Отключение канала CNHN       
+TIM1_DTR=0x01;            // Мертвое время. Равно 500 нс. Считается количество тактов*DTR. Тактовая частота равна 2 МГЦ. 
+TIM1_ARRH=0x01;           // Старший Бит периода ШИМ
+TIM1_ARRL=0x90;           // Старший Бит периода ШИМ
+TIM1_CCR1H=0x00;          // Старший Бит импульса ШИМ для канала 1           
+TIM1_CCR1L=0xC8;          // Младший Бит импульса ШИМ для канала 1           
+TIM1_CCR2H=0x00;          // Старший Бит импульса ШИМ для канала 2  
+TIM1_CCR2L=0xC8;          // Младший Бит импульса ШИМ для канала 2
+//TIM1_CR1_bit.CEN=1;
+
+
+
+/*
+TIM2_CR1_bit.URS=1;       // Прерывание таймера 2 только при переполнении
+TIM2_IER_bit.UIE=1;       // Разрешение прерывания таймера при переполнении 
+TIM2_CR1_bit.OPM=1;       // Одниночный режим работы таймера 2     
+TIM2_PSCR=0x05;           // Делитель частоты таймера 2. 
+TIM2_ARRH = 0xF4;         // Старший бит счетчика
+TIM2_ARRL = 0x24;         // Младший бит счетчика.
+
+*/
+
+
+}
+
+
+
+
+__interrupt void EXTI_PB5(void) // прерывание по сигналу input_signal_start
+
+{
+// заряд емкостей конденсаторов верхних ключей. (на 500 мкс)  
+TIM1_ARRH=0x01;
+TIM1_ARRL=0x90;
+TIM1_CCR1H=0x01;
+TIM1_CCR1L=0x90;
+TIM1_CCR2H=0x01;
+TIM1_CCR2L=0x90;
+
+TIM1_CCER1_bit.CC1P=0;  
+TIM1_CCER1_bit.CC1NE=0;
+TIM1_CCER1_bit.CC1E=1; // вкдючение канала CH1
+TIM1_CCER1_bit.CC2P=0;  
+TIM1_CCER1_bit.CC2E=1; // включение канала CH2
+TIM1_CCER1_bit.CC2NE=0;
+asm("nop");
+TIM1_CR1_bit.CEN=1;     // включение счетчика таймера 1.
+
+// задержка
+for (i=0;i<20;i++)
+{
+
+} 
+// выключение счетчика таймера 1.
+TIM1_CR1_bit.CEN=0;
+
+asm("nop");
+
+// Генерация импульсов для инвертора. Максимальная длительность генерации импульсов 1 с. Длительность импульса зависит от наличии команда input_signal_start.
+if (PB_IDR_bit.IDR5==1)
+{
+asm("nop");
+TIM1_ARRH=0x01;
+TIM1_ARRL=0x90;
+TIM1_CCR1H=0x00;
+TIM1_CCR1L=0xC8;
+TIM1_CCR2H=0x00;
+TIM1_CCR2L=0xC8;
+TIM1_CCER1_bit.CC1P=0;  
+TIM1_CCER1_bit.CC1NE=1;
+TIM1_CCER1_bit.CC1E=1; 
+asm("nop");
+TIM1_CCER1_bit.CC2P=0;  
+TIM1_CCER1_bit.CC2E=1;
+TIM1_CCER1_bit.CC2NE=1;
+asm("nop");
+
+TIM1_CR1_bit.CEN=1;
+
+TIM2_CR1_bit.CEN=1;
+
+PB_ODR_bit.ODR4=1;  
+PD_ODR_bit.ODR3=0; 
+PD_ODR_bit.ODR4=1;
+}
+
+
+
+// Прекрашение генерации импульсов, если команда старта пропала (input_signal_start = 0)
+if (PB_IDR_bit.IDR5==0)
+{
+
+TIM1_CCER1_bit.CC1P=0;  
+TIM1_CCER1_bit.CC1NE=0;
+TIM1_CCER1_bit.CC1E=0;
+TIM1_CCER1_bit.CC2P=0;  
+TIM1_CCER1_bit.CC2E=0;
+TIM1_CCER1_bit.CC2NE=0;  
+TIM1_CR1_bit.CEN=0;
+PB_CR2_bit.C27=0;
+TIM2_SR1_UIF=0; 
+TIM2_CR1_bit.CEN=0;
+PD_ODR_bit.ODR3=1; 
+PD_ODR_bit.ODR4=0;
+PB_ODR_bit.ODR4=0; 
+for (i=0;i<600;i++)
+{
+
+} 
+
+
+}
+
+
+}
+
+__interrupt void TIM2_OVR_UIF(void) // прерывание при переполнении счетчика таймера 2 
+
+{
+
+TIM1_CCER1_bit.CC1P=0;               
+TIM1_CCER1_bit.CC1NE=0;             // отключение канала 1 CH1
+TIM1_CCER1_bit.CC1E=0;              // отключение канала 1 CH1N
+
+TIM1_CCER1_bit.CC2P=0;  
+TIM1_CCER1_bit.CC2E=0;              // отключение канала 2 CH2
+TIM1_CCER1_bit.CC2NE=0;             // отключение канала 2 CH2
+TIM1_CR1_bit.CEN=0;                 // Отключение таймера 1.
+PD_ODR_bit.ODR3=1;                     
+PD_ODR_bit.ODR4=0; 
+PD_ODR_bit.ODR0=0;
+TIM2_SR1_UIF=0;                     // Сброс флага счетчика (обнуление)   
+for (i=0;i<600;i++)
+{
+
+} 
+
+}
+
+
+
+__interrupt void EXTI_PD5(void)
+
+{
+ PB_CR2_bit.C25=0;        // Запрет прерывания на порту PB5 
+ PD_ODR_bit.ODR6=0;      //  сигнал out_signal_ready = 0
+}
+
+
+
+ 
